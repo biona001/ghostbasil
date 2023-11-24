@@ -6,9 +6,8 @@
 
 static auto init_eigen_vec(jlcxx::ArrayRef<double, 1> vec) {
     Eigen::VectorXd eigen_vec(vec.size());
-    size_t k = 0;
     for (size_t i = 0; i < vec.size(); i++) {
-        eigen_vec(i) = vec[k++];
+        eigen_vec(i) = vec[i];
     }
     return eigen_vec;
 }
@@ -184,35 +183,9 @@ std::vector<double> basil_block_group_ghost__(
     auto gmw = BlockGroupGhostMatrixWrap(C, S, m, p, p);
     const auto& gm = gmw.internal();
 
-    // test internal BlockGroupGhostMatrix is correct
-    std::cout << "testing A has S and D matrices internally" << '\n';
-    const auto& C2 = gm.get_S(); // first input to BlockGroupGhostMatrix (dense)
-    std::cout << "C2.size() = " << C2.size() << '\n';
-    std::cout << "C2.coeff(0, 0) = " << C2.coeff(0, 0) << '\n';
-    std::cout << "C2.coeff(0, 1) = " << C2.coeff(0, 1) << '\n';
-    std::cout << "C2.coeff(1, 1) = " << C2.coeff(1, 1) << '\n';
-    const auto& S2 = gm.get_D(); // second input to BlockGroupGhostMatrix (a BlockMatrix)
-    std::cout << "S2.size() = " << S2.size() << '\n';
-    std::cout << "S2.coeff(0, 0) = " << S2.coeff(0, 0) << '\n';
-    std::cout << "S2.coeff(0, 1) = " << S2.coeff(0, 1) << '\n';
-    std::cout << "S2.coeff(1, 1) = " << S2.coeff(1, 1) << '\n';
-
-    // test overall BlockGroupGhostMatrix is correct
-    std::cout << "testing BlockGroupGhostMatrix" << '\n';
-    std::cout << "gm.rows() = " << gm.rows() << '\n';
-    std::cout << "gm.cols() = " << gm.cols() << '\n';
-    std::cout << "gm.size() = " << gm.size() << '\n';
-    std::cout << "gm.coeff(0, 0) = " << gm.coeff(0, 0) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(0, 1) = " << gm.coeff(0, 1) << '\n'; // should be 0.782109
-    std::cout << "gm.coeff(1, 1) = " << gm.coeff(1, 1) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p) = " << gm.coeff(p, p) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p+1) = " << gm.coeff(p, p+1) << '\n'; // should be 0.782109
-    std::cout << "gm.coeff(p+1, p+1) = " << gm.coeff(p+1, p+1) << '\n'; // should be 1.01
-
-
     // default alpha = 1.0 and penalty = vector of 1s
     double alpha = 1.0;
-    Eigen::VectorXd ones = Eigen::VectorXd::Ones(p);
+    Eigen::VectorXd ones = Eigen::VectorXd::Ones((m+1) * p);
     Eigen::Map<Eigen::VectorXd> penalty(ones.data(), ones.size());
 
     // convert r and user_lmdas to Eigen::Map<Eigen::VectorXd>
@@ -225,20 +198,6 @@ std::vector<double> basil_block_group_ghost__(
             gm, r2, alpha, penalty, lambdas, max_n_lambdas,
             n_lambdas_iter, use_strong_rule, do_early_exit, delta_strong_size,
             max_strong_size, max_n_cds, thr, min_ratio, n_threads);
-
-    std::cout << "after convergence, testing BlockGroupGhostMatrix again" << '\n';
-    std::cout << "C2.coeff(0, 0) = " << C2.coeff(0, 0) << '\n';
-    std::cout << "C2.coeff(0, 1) = " << C2.coeff(0, 1) << '\n';
-    std::cout << "C2.coeff(1, 1) = " << C2.coeff(1, 1) << '\n';
-    std::cout << "S2.coeff(0, 0) = " << S2.coeff(0, 0) << '\n';
-    std::cout << "S2.coeff(0, 1) = " << S2.coeff(0, 1) << '\n';
-    std::cout << "S2.coeff(1, 1) = " << S2.coeff(1, 1) << '\n';
-    std::cout << "gm.coeff(0, 0) = " << gm.coeff(0, 0) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(0, 1) = " << gm.coeff(0, 1) << '\n'; // should be 0.782109
-    std::cout << "gm.coeff(1, 1) = " << gm.coeff(1, 1) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p) = " << gm.coeff(p, p) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p+1) = " << gm.coeff(p, p+1) << '\n'; // should be 0.782109
-    std::cout << "gm.coeff(p+1, p+1) = " << gm.coeff(p+1, p+1) << '\n'; // should be 1.01
 
     return result;
 }

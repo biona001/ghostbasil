@@ -177,37 +177,6 @@ std::vector<double> basil_block_group_ghost__(
     auto gmw = BlockGroupGhostMatrixWrap(C, S, m, p, p);
     const auto& gm = gmw.internal();
 
-    // test internal BlockGroupGhostMatrix is correct
-    std::cout << "testing internal S and D matrices are correct" << '\n';
-    const auto& Stest = gm.get_S(); // first input to BlockGroupGhostMatrix (dense matrix C)
-    std::cout << "Stest.size() = " << Stest.size() << '\n';
-    std::cout << "Stest.coeff(0, 0) = " << Stest.coeff(0, 0) << '\n'; // 0.739373
-    std::cout << "Stest.coeff(0, 1) = " << Stest.coeff(0, 1) << '\n'; // 0.69938
-    std::cout << "Stest.coeff(1, 1) = " << Stest.coeff(1, 1) << '\n'; // 0.829144
-    std::cout << "Stest.coeff(1989, 1989) = " << Stest.coeff(1989, 1989) << '\n'; // 0.921706
-    std::cout << "Stest.coeff(1989, 1990) = " << Stest.coeff(1989, 1990) << '\n'; // -0.0333216
-    std::cout << "Stest.coeff(1990, 1990) = " << Stest.coeff(1990, 1990) << '\n'; // 0.670389
-    const auto& Dtest = gm.get_D(); // second input to BlockGroupGhostMatrix (a BlockMatrix S)
-    std::cout << "Dtest.size() = " << Dtest.size() << '\n';
-    std::cout << "Dtest.coeff(0, 0) = " << Dtest.coeff(0, 0) << '\n'; // 0.270627
-    std::cout << "Dtest.coeff(0, 1) = " << Dtest.coeff(0, 1) << '\n'; // 0.0261048
-    std::cout << "Dtest.coeff(1, 1) = " << Dtest.coeff(1, 1) << '\n'; // 0.180856
-    std::cout << "Dtest.coeff(1989, 1989) = " << Dtest.coeff(1989, 1989) << '\n'; // 0.0882941
-    std::cout << "Dtest.coeff(1989, 1990) = " << Dtest.coeff(1989, 1990) << '\n'; // -0.00179219
-    std::cout << "Dtest.coeff(1990, 1990) = " << Dtest.coeff(1990, 1990) << '\n'; // 0.339611
-
-    // test overall BlockGroupGhostMatrix is correct
-    std::cout << "testing BlockGroupGhostMatrix" << '\n';
-    std::cout << "gm.rows() = " << gm.rows() << '\n';
-    std::cout << "gm.cols() = " << gm.cols() << '\n';
-    std::cout << "gm.size() = " << gm.size() << '\n';
-    std::cout << "gm.coeff(0, 0) = " << gm.coeff(0, 0) << '\n'; // should be (Si_scaled + Ci) = 1.01
-    std::cout << "gm.coeff(0, 1) = " << gm.coeff(0, 1) << '\n'; // should be 0.782109
-    std::cout << "gm.coeff(1, 1) = " << gm.coeff(1, 1) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p) = " << gm.coeff(p, p) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p+1) = " << gm.coeff(p, p+1) << '\n'; // should be 0.782109
-    std::cout << "gm.coeff(p+1, p+1) = " << gm.coeff(p+1, p+1) << '\n'; // should be 1.01
-
     // default alpha = 1.0 and penalty = vector of 1s
     double alpha = 1.0;
     Eigen::VectorXd ones = Eigen::VectorXd::Ones((m+1) * p);
@@ -220,12 +189,10 @@ std::vector<double> basil_block_group_ghost__(
     Eigen::Map<Eigen::VectorXd> r2(r1.data(), r1.size());
 
     // call basil__ function defined above 
-    std::cout << "reached right before basil__\n" << std::flush;
     std::vector<double> result = basil__(
             gm, r2, alpha, penalty, lambdas, max_n_lambdas,
             n_lambdas_iter, use_strong_rule, do_early_exit, delta_strong_size,
             max_strong_size, max_n_cds, thr, min_ratio, n_threads);
-    std::cout << "reached right after basil__\n" << std::flush;
 
     return result;
 }

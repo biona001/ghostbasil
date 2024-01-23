@@ -23,22 +23,43 @@ static auto init_eigen_mat(jlcxx::ArrayRef<double, 2> mat, int_t rows, int_t col
     return eigen_mat_;
 }
 
+// should be the same as BlockMatrixWrap 
+// https://github.com/biona001/ghostbasil/blob/master/R/inst/include/rcpp_block_matrix.hpp
+// but it only wraps 1 (dense) matrix at a time. 
 class OneBlockMatrixWrap
 {
     jlcxx::ArrayRef<double, 2> orig_mat_;
     Eigen::MatrixXd eigen_mat_;
-    std::vector<Eigen::Map<Eigen::MatrixXd>> mat_list_;
-    ghostbasil::BlockMatrix<Eigen::Map<Eigen::MatrixXd>> block_mat_;
+    std::vector<Eigen::MatrixXd> mat_list_;
+    ghostbasil::BlockMatrix<Eigen::MatrixXd> block_mat_;
     const Eigen::Array<size_t, 2, 1> dim_;
+
+    static auto init_mat_list(Eigen::MatrixXd mat, int_t rows, int_t cols) {
+        std::vector<Eigen::MatrixXd> mat_list_;
+        mat_list_.reserve(1); // wrapper is for only 1 block of matrix 
+        mat_list_.emplace_back(mat);
+        return mat_list_;
+    }
 
 public: 
     OneBlockMatrixWrap(jlcxx::ArrayRef<double, 2> mat, int_t rows, int_t cols)
         : orig_mat_(mat),
         eigen_mat_(init_eigen_mat(mat, rows, cols)),
-        dim_(eigen_mat_.rows(), eigen_mat_.cols())
+        mat_list_(init_mat_list(eigen_mat_, rows, cols)),
+        block_mat_(mat_list_),
+        dim_(block_mat_.rows(), block_mat_.cols())
     {
-        mat_list_.emplace_back(Eigen::Map<Eigen::MatrixXd>(eigen_mat_.data(), rows, cols));
-        block_mat_ = ghostbasil::BlockMatrix<Eigen::Map<Eigen::MatrixXd>>(mat_list_);
+        std::cout << "mat_list_ size: " << mat_list_.size() << "\n";
+        std::cout << "reached inside OneBlockMatrixWrap\n";
+        int block_mat_row = block_mat_.rows();
+        int block_mat_col = block_mat_.cols();
+        std::cout << "block_mat_.size() = " << block_mat_.size() << '\n';
+        std::cout << "block_mat_.coeff(0, 0) = " << block_mat_.coeff(0, 0) << '\n'; // 0.270627
+        std::cout << "block_mat_.coeff(0, 1) = " << block_mat_.coeff(0, 1) << '\n'; // 0.0261048
+        std::cout << "block_mat_.coeff(1, 1) = " << block_mat_.coeff(1, 1) << '\n'; // 0.180856
+        std::cout << "block_mat_.coeff(block_mat_row - 2, block_mat_col - 2) = " << block_mat_.coeff(block_mat_row - 2, block_mat_col - 2) << '\n'; // 0.0882941
+        std::cout << "block_mat_.coeff(block_mat_row - 2, block_mat_col - 1) = " << block_mat_.coeff(block_mat_row - 2, block_mat_col - 1) << '\n'; // -0.00179219
+        std::cout << "block_mat_.coeff(block_mat_row - 1, block_mat_col - 1) = " << block_mat_.coeff(block_mat_row - 1, block_mat_col - 1) << '\n'; // 0.339611
     }
 
     // GHOSTBASIL_STRONG_INLINE
@@ -52,14 +73,14 @@ public:
 class BlockGroupGhostMatrixWrap
 {
 public:
-    using bmat_t = ghostbasil::BlockMatrix<Eigen::Map<Eigen::MatrixXd>>;
+    using bmat_t = ghostbasil::BlockMatrix<Eigen::MatrixXd>;
 
 private:
     jlcxx::ArrayRef<double, 2> orig_mat_S_;
     jlcxx::ArrayRef<double, 2> orig_mat_D_;
     Eigen::MatrixXd eigen_mat_S_;
     Eigen::MatrixXd eigen_mat_D_;
-    const Eigen::Map<Eigen::MatrixXd> orig_S_;
+    const Eigen::MatrixXd orig_S_;
     const OneBlockMatrixWrap orig_D_;
     ghostbasil::BlockGroupGhostMatrix<Eigen::MatrixXd, bmat_t> gmat_;
     const Eigen::Array<size_t, 2, 1> dim_;
@@ -76,7 +97,7 @@ public:
           orig_mat_D_(D),
           eigen_mat_S_(init_eigen_mat(S, rows, cols)),
           eigen_mat_D_(init_eigen_mat(D, rows, cols)),
-          orig_S_(Eigen::Map<Eigen::MatrixXd>(eigen_mat_S_.data(), rows, cols)),
+          orig_S_(eigen_mat_S_),
           orig_D_(orig_mat_D_, rows, cols),
           gmat_(orig_S_, 
                 orig_D_.internal(), 
@@ -155,7 +176,7 @@ std::vector<double> basil__(
 // pass `C` and `S` as Julia matrices into C++, convert `S` to a `BlockMatrix`
 // with a single block, convert `C` to a Eigen matrix, and then pass `C` and `S`
 // directly into `basil__`
-std::vector<double> basil_block_group_ghost__(
+std::vector<double>* basil_block_group_ghost__(
         const jlcxx::ArrayRef<double, 2> C, // dense matrix
         const jlcxx::ArrayRef<double, 2> S, // becomes a BlockMatrix
         const jlcxx::ArrayRef<double, 1> r,
@@ -177,6 +198,41 @@ std::vector<double> basil_block_group_ghost__(
     auto gmw = BlockGroupGhostMatrixWrap(C, S, m, p, p);
     const auto& gm = gmw.internal();
 
+    // test internal BlockGroupGhostMatrix is correct
+    std::cout << "testing internal S and D matrices are correct" << '\n';
+    const auto& Stest = gm.get_S(); // first input to BlockGroupGhostMatrix (dense matrix C)
+    int Stest_row = Stest.rows();
+    int Stest_col = Stest.cols();
+    std::cout << "Stest.size() = " << Stest.size() << '\n';
+    std::cout << "Stest.coeff(0, 0) = " << Stest.coeff(0, 0) << '\n'; // 0.739373
+    std::cout << "Stest.coeff(0, 1) = " << Stest.coeff(0, 1) << '\n'; // 0.69938
+    std::cout << "Stest.coeff(1, 1) = " << Stest.coeff(1, 1) << '\n'; // 0.829144
+    std::cout << "Stest.coeff(Stest_row - 2, Stest_col - 2) = " << Stest.coeff(Stest_row - 2, Stest_col - 2) << '\n'; // 0.921706
+    std::cout << "Stest.coeff(Stest_row - 2, Stest_col - 1) = " << Stest.coeff(Stest_row - 2, Stest_col - 1) << '\n'; // -0.0333216
+    std::cout << "Stest.coeff(Stest_row - 1, Stest_col - 1) = " << Stest.coeff(Stest_row - 1, Stest_col - 1) << '\n'; // 0.670389
+    const auto& Dtest = gm.get_D(); // second input to BlockGroupGhostMatrix (a BlockMatrix S)
+    int Dtest_row = Dtest.rows();
+    int Dtest_col = Dtest.cols();
+    std::cout << "Dtest.size() = " << Dtest.size() << '\n';
+    std::cout << "Dtest.coeff(0, 0) = " << Dtest.coeff(0, 0) << '\n'; // 0.270627
+    std::cout << "Dtest.coeff(0, 1) = " << Dtest.coeff(0, 1) << '\n'; // 0.0261048
+    std::cout << "Dtest.coeff(1, 1) = " << Dtest.coeff(1, 1) << '\n'; // 0.180856
+    std::cout << "Dtest.coeff(Dtest_row - 2, Dtest_col - 2) = " << Dtest.coeff(Dtest_row - 2, Dtest_col - 2) << '\n'; // 0.0882941
+    std::cout << "Dtest.coeff(Dtest_row - 2, Dtest_col - 1) = " << Dtest.coeff(Dtest_row - 2, Dtest_col - 1) << '\n'; // -0.00179219
+    std::cout << "Dtest.coeff(Dtest_row - 1, Dtest_col - 1) = " << Dtest.coeff(Dtest_row - 1, Dtest_col - 1) << '\n'; // 0.339611
+
+    // test overall BlockGroupGhostMatrix is correct
+    std::cout << "testing BlockGroupGhostMatrix" << '\n';
+    std::cout << "gm.rows() = " << gm.rows() << '\n';
+    std::cout << "gm.cols() = " << gm.cols() << '\n';
+    std::cout << "gm.size() = " << gm.size() << '\n';
+    std::cout << "gm.coeff(0, 0) = " << gm.coeff(0, 0) << '\n'; // should be (Si_scaled + Ci) = 1.01
+    std::cout << "gm.coeff(0, 1) = " << gm.coeff(0, 1) << '\n'; // should be 0.725485
+    std::cout << "gm.coeff(1, 1) = " << gm.coeff(1, 1) << '\n'; // should be 1.01
+    std::cout << "gm.coeff(p, p) = " << gm.coeff(p, p) << '\n'; // should be 1.01
+    std::cout << "gm.coeff(p, p+1) = " << gm.coeff(p, p+1) << '\n'; // should be 0.725485
+    std::cout << "gm.coeff(p+1, p+1) = " << gm.coeff(p+1, p+1) << '\n'; // should be 1.01
+
     // default alpha = 1.0 and penalty = vector of 1s
     double alpha = 1.0;
     Eigen::VectorXd ones = Eigen::VectorXd::Ones((m+1) * p);
@@ -189,7 +245,8 @@ std::vector<double> basil_block_group_ghost__(
     Eigen::Map<Eigen::VectorXd> r2(r1.data(), r1.size());
 
     // call basil__ function defined above 
-    std::vector<double> result = basil__(
+    auto result = new std::vector<double>();
+    *result = basil__(
             gm, r2, alpha, penalty, lambdas, max_n_lambdas,
             n_lambdas_iter, use_strong_rule, do_early_exit, delta_strong_size,
             max_strong_size, max_n_cds, thr, min_ratio, n_threads);

@@ -106,7 +106,7 @@ public:
 // and (b) there is a lot less "checking" (so its behavior is unpredictable
 // when user early terminates)
 template <class AType>
-std::vector<double> basil__(
+std::vector<double>* basil__(
         const AType& A, 
         const Eigen::Map<Eigen::VectorXd> r,
         double alpha,
@@ -151,9 +151,9 @@ std::vector<double> basil__(
 
     // return the beta corresponding to the last lambda value
     Eigen::SparseVector<double> last_beta = betas.back();
-    std::vector<double> dense_last_beta(last_beta.size(), 0.0);
+    auto dense_last_beta = new std::vector<double>(last_beta.size(), 0.0);
     for (Eigen::SparseVector<double>::InnerIterator it(last_beta); it; ++it) {
-        dense_last_beta[it.index()] = it.value();
+        (*dense_last_beta)[it.index()] = it.value();
     }
     return dense_last_beta;
 }
@@ -198,13 +198,10 @@ std::vector<double>* basil_block_group_ghost__(
     Eigen::Map<Eigen::VectorXd> r2(r1.data(), r1.size());
 
     // call basil__ function defined above 
-    auto result = new std::vector<double>();
-    *result = basil__(
-            gm, r2, alpha, penalty, lambdas, max_n_lambdas,
-            n_lambdas_iter, use_strong_rule, do_early_exit, delta_strong_size,
-            max_strong_size, max_n_cds, thr, min_ratio, n_threads);
-
-    return result;
+    return basil__(
+        gm, r2, alpha, penalty, lambdas, max_n_lambdas,
+        n_lambdas_iter, use_strong_rule, do_early_exit, delta_strong_size,
+        max_strong_size, max_n_cds, thr, min_ratio, n_threads);
 }
 
 void free_basil_result(std::vector<double>* result) {

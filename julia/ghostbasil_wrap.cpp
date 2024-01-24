@@ -106,7 +106,8 @@ public:
 // and (b) there is a lot less "checking" (so its behavior is unpredictable
 // when user early terminates)
 template <class AType>
-std::vector<double>* basil__(
+void basil__(
+        std::vector<double>& beta_i, // output result
         const AType& A, 
         const Eigen::Map<Eigen::VectorXd> r,
         double alpha,
@@ -151,11 +152,9 @@ std::vector<double>* basil__(
 
     // return the beta corresponding to the last lambda value
     Eigen::SparseVector<double> last_beta = betas.back();
-    auto dense_last_beta = new std::vector<double>(last_beta.size(), 0.0);
     for (Eigen::SparseVector<double>::InnerIterator it(last_beta); it; ++it) {
-        (*dense_last_beta)[it.index()] = it.value();
+        beta_i[it.index()] = it.value();
     }
-    return dense_last_beta;
 }
 
 // Same as `basil_block_group_ghost__` at
@@ -164,7 +163,8 @@ std::vector<double>* basil__(
 // pass `C` and `S` as Julia matrices into C++, convert `S` to a `BlockMatrix`
 // with a single block, convert `C` to a Eigen matrix, and then pass `C` and `S`
 // directly into `basil__`
-std::vector<double>* basil_block_group_ghost__(
+void basil_block_group_ghost__(
+        std::vector<double>& output_beta, // output result
         const jlcxx::ArrayRef<double, 2> C, // dense matrix
         const jlcxx::ArrayRef<double, 2> S, // becomes a BlockMatrix
         const jlcxx::ArrayRef<double, 1> r,
@@ -198,18 +198,37 @@ std::vector<double>* basil_block_group_ghost__(
     Eigen::Map<Eigen::VectorXd> r2(r1.data(), r1.size());
 
     // call basil__ function defined above 
-    return basil__(
-        gm, r2, alpha, penalty, lambdas, max_n_lambdas,
+    basil__(
+        output_beta, gm, r2, alpha, penalty, lambdas, max_n_lambdas,
         n_lambdas_iter, use_strong_rule, do_early_exit, delta_strong_size,
         max_strong_size, max_n_cds, thr, min_ratio, n_threads);
 }
 
-void free_basil_result(std::vector<double>* result) {
-    delete result;
-}
-
 JLCXX_MODULE define_julia_module(jlcxx::Module& mod)
 {
-    mod.method("block_group_ghostbasil", &basil_block_group_ghost__);
-    mod.method("free_basil_result", &free_basil_result);
+    mod.method("block_group_ghostbasil", [](
+        const jlcxx::ArrayRef<double, 2> C, // dense matrix
+        const jlcxx::ArrayRef<double, 2> S, // becomes a BlockMatrix
+        const jlcxx::ArrayRef<double, 1> r,
+        const jlcxx::ArrayRef<double, 1> user_lmdas,
+        int_t m, // number of knockoffs
+        int_t p, // dimension of S and C (both square matrices)
+        size_t max_n_lambdas,
+        size_t n_lambdas_iter,
+        bool use_strong_rule,
+        bool do_early_exit,
+        size_t delta_strong_size,
+        size_t max_strong_size,
+        size_t max_n_cds,
+        double thr,
+        double min_ratio,
+        size_t n_threads
+    ){
+        std::vector<double> output_beta((m+1) * p, 0.0);
+        basil_block_group_ghost__(
+            output_beta, C, S, r, user_lmdas, m, p, max_n_lambdas, n_lambdas_iter,
+            use_strong_rule, do_early_exit, delta_strong_size, max_strong_size,
+            max_n_cds, thr, min_ratio, n_threads);
+        return output_beta;
+    });
 }

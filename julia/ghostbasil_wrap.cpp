@@ -254,7 +254,12 @@ std::vector<double>* basil_block_group_ghost__(
     return result;
 }
 
+void free_basil_result(std::vector<double>* result) {
+    delete result;
+}
+
 JLCXX_MODULE define_julia_module(jlcxx::Module& mod)
 {
     mod.method("block_group_ghostbasil", &basil_block_group_ghost__);
+    mod.method("free_basil_result", &free_basil_result);
 }

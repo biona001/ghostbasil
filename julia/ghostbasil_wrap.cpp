@@ -48,19 +48,7 @@ public:
         mat_list_(init_mat_list(eigen_mat_, rows, cols)),
         block_mat_(mat_list_),
         dim_(block_mat_.rows(), block_mat_.cols())
-    {
-        std::cout << "mat_list_ size: " << mat_list_.size() << "\n";
-        std::cout << "reached inside OneBlockMatrixWrap\n";
-        int block_mat_row = block_mat_.rows();
-        int block_mat_col = block_mat_.cols();
-        std::cout << "block_mat_.size() = " << block_mat_.size() << '\n';
-        std::cout << "block_mat_.coeff(0, 0) = " << block_mat_.coeff(0, 0) << '\n'; // 0.270627
-        std::cout << "block_mat_.coeff(0, 1) = " << block_mat_.coeff(0, 1) << '\n'; // 0.0261048
-        std::cout << "block_mat_.coeff(1, 1) = " << block_mat_.coeff(1, 1) << '\n'; // 0.180856
-        std::cout << "block_mat_.coeff(block_mat_row - 2, block_mat_col - 2) = " << block_mat_.coeff(block_mat_row - 2, block_mat_col - 2) << '\n'; // 0.0882941
-        std::cout << "block_mat_.coeff(block_mat_row - 2, block_mat_col - 1) = " << block_mat_.coeff(block_mat_row - 2, block_mat_col - 1) << '\n'; // -0.00179219
-        std::cout << "block_mat_.coeff(block_mat_row - 1, block_mat_col - 1) = " << block_mat_.coeff(block_mat_row - 1, block_mat_col - 1) << '\n'; // 0.339611
-    }
+    {}
 
     // GHOSTBASIL_STRONG_INLINE
     const auto& internal() const { return block_mat_; }
@@ -197,41 +185,6 @@ std::vector<double>* basil_block_group_ghost__(
     // convert C and S to instance of BlockGroupGhostMatrix
     auto gmw = BlockGroupGhostMatrixWrap(C, S, m, p, p);
     const auto& gm = gmw.internal();
-
-    // test internal BlockGroupGhostMatrix is correct
-    std::cout << "testing internal S and D matrices are correct" << '\n';
-    const auto& Stest = gm.get_S(); // first input to BlockGroupGhostMatrix (dense matrix C)
-    int Stest_row = Stest.rows();
-    int Stest_col = Stest.cols();
-    std::cout << "Stest.size() = " << Stest.size() << '\n';
-    std::cout << "Stest.coeff(0, 0) = " << Stest.coeff(0, 0) << '\n'; // 0.739373
-    std::cout << "Stest.coeff(0, 1) = " << Stest.coeff(0, 1) << '\n'; // 0.69938
-    std::cout << "Stest.coeff(1, 1) = " << Stest.coeff(1, 1) << '\n'; // 0.829144
-    std::cout << "Stest.coeff(Stest_row - 2, Stest_col - 2) = " << Stest.coeff(Stest_row - 2, Stest_col - 2) << '\n'; // 0.921706
-    std::cout << "Stest.coeff(Stest_row - 2, Stest_col - 1) = " << Stest.coeff(Stest_row - 2, Stest_col - 1) << '\n'; // -0.0333216
-    std::cout << "Stest.coeff(Stest_row - 1, Stest_col - 1) = " << Stest.coeff(Stest_row - 1, Stest_col - 1) << '\n'; // 0.670389
-    const auto& Dtest = gm.get_D(); // second input to BlockGroupGhostMatrix (a BlockMatrix S)
-    int Dtest_row = Dtest.rows();
-    int Dtest_col = Dtest.cols();
-    std::cout << "Dtest.size() = " << Dtest.size() << '\n';
-    std::cout << "Dtest.coeff(0, 0) = " << Dtest.coeff(0, 0) << '\n'; // 0.270627
-    std::cout << "Dtest.coeff(0, 1) = " << Dtest.coeff(0, 1) << '\n'; // 0.0261048
-    std::cout << "Dtest.coeff(1, 1) = " << Dtest.coeff(1, 1) << '\n'; // 0.180856
-    std::cout << "Dtest.coeff(Dtest_row - 2, Dtest_col - 2) = " << Dtest.coeff(Dtest_row - 2, Dtest_col - 2) << '\n'; // 0.0882941
-    std::cout << "Dtest.coeff(Dtest_row - 2, Dtest_col - 1) = " << Dtest.coeff(Dtest_row - 2, Dtest_col - 1) << '\n'; // -0.00179219
-    std::cout << "Dtest.coeff(Dtest_row - 1, Dtest_col - 1) = " << Dtest.coeff(Dtest_row - 1, Dtest_col - 1) << '\n'; // 0.339611
-
-    // test overall BlockGroupGhostMatrix is correct
-    std::cout << "testing BlockGroupGhostMatrix" << '\n';
-    std::cout << "gm.rows() = " << gm.rows() << '\n';
-    std::cout << "gm.cols() = " << gm.cols() << '\n';
-    std::cout << "gm.size() = " << gm.size() << '\n';
-    std::cout << "gm.coeff(0, 0) = " << gm.coeff(0, 0) << '\n'; // should be (Si_scaled + Ci) = 1.01
-    std::cout << "gm.coeff(0, 1) = " << gm.coeff(0, 1) << '\n'; // should be 0.725485
-    std::cout << "gm.coeff(1, 1) = " << gm.coeff(1, 1) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p) = " << gm.coeff(p, p) << '\n'; // should be 1.01
-    std::cout << "gm.coeff(p, p+1) = " << gm.coeff(p, p+1) << '\n'; // should be 0.725485
-    std::cout << "gm.coeff(p+1, p+1) = " << gm.coeff(p+1, p+1) << '\n'; // should be 1.01
 
     // default alpha = 1.0 and penalty = vector of 1s
     double alpha = 1.0;

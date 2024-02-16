@@ -207,6 +207,7 @@ void basil_block_group_ghost__(
 JLCXX_MODULE define_julia_module(jlcxx::Module& mod)
 {
     mod.method("block_group_ghostbasil", [](
+        jlcxx::ArrayRef<double, 1> beta, 
         const jlcxx::ArrayRef<double, 2> C, // dense matrix
         const jlcxx::ArrayRef<double, 2> S, // becomes a BlockMatrix
         const jlcxx::ArrayRef<double, 1> r,
@@ -224,11 +225,16 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod)
         double min_ratio,
         size_t n_threads
     ){
+        // allocate output_beta and fill its values via basil_block_group_ghost__
         std::vector<double> output_beta((m+1) * p, 0.0);
         basil_block_group_ghost__(
             output_beta, C, S, r, user_lmdas, m, p, max_n_lambdas, n_lambdas_iter,
             use_strong_rule, do_early_exit, delta_strong_size, max_strong_size,
             max_n_cds, thr, min_ratio, n_threads);
-        return output_beta;
+
+        // fill Julia array with values from output_beta
+        for (size_t i = 0; i < output_beta.size(); i++) {
+            beta[i] = output_beta[i];
+        }
     });
 }
